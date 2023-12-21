@@ -160,7 +160,7 @@ class Tools:
 if __name__ == "__main__":
     print("Tools.py")
     tool = Tools()
-    tool.read_file("audio.mp3")
+    tool.read_file("./songs/interstellar.mp3")
     #tool.plot()
     #tool.plot_fft()
     #tool.apply_stopband_filter(2500, 3000)
