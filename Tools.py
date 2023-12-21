@@ -93,7 +93,7 @@ class Tools:
     def getData(self):
         return self.data
     def getSampleRate(self):
-        return self.sample_rate
+        return int(self.sample_rate)
     
     def plot(self,range_low,range_high):
         plt.figure(figsize=(12, 4))
