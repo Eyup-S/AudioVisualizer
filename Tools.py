@@ -4,7 +4,8 @@ import numpy as np
 from pydub import AudioSegment
 from pydub.utils import mediainfo
 from scipy.signal import butter, lfilter
-
+import sounddevice as sd
+import threading
 
 class Tools:
         
@@ -18,7 +19,7 @@ class Tools:
             if audio.channels > 1:
                 audio = audio.set_channels(1)
             self.data = np.array(audio.get_array_of_samples())
-            self.sample_rate = mediainfo(file_name)['sample_rate']
+            self.sample_rate = int(mediainfo(file_name)['sample_rate'])
             self.duration = mediainfo(file_name)['duration']
 
         elif file_name.endswith(".mp3"):
@@ -26,12 +27,17 @@ class Tools:
             if audio.channels > 1:
                 audio = audio.set_channels(1)
             self.data = np.array(audio.get_array_of_samples())
-            self.sample_rate = mediainfo(file_name)['sample_rate']
+            self.sample_rate = int(mediainfo(file_name)['sample_rate'])
             self.duration = mediainfo(file_name)['duration']
             print("duration: ", self.duration)
         else:
             print("File format not supported")
             return
+        
+        self.playback_thread = None
+        self.position = 0
+        self.paused = True
+        self.stop_flag = False
         print(self.data.shape)
 
     def fourier_transform(self):
@@ -111,6 +117,44 @@ class Tools:
 
     def saveFile(self, file_name):
         wavfile.write(file_name, self.sample_rate, self.data)
+    
+    def play(self):
+        if self.paused:
+            self.paused = False
+            if self.playback_thread is None or not self.playback_thread.is_alive():
+                self.playback_thread = threading.Thread(target=self._play_audio)
+                self.playback_thread.start()
+
+    def pause(self):
+        if not self.paused:
+            self.paused = True
+            sd.stop()
+
+    def _play_audio(self):
+        with sd.OutputStream(samplerate=self.sample_rate, channels=1) as stream:
+            while not self.paused and not self.stop_flag:
+                start = self.position
+                end = start + int(self.sample_rate * 0.5)  # Play half a second at a time
+                if end > len(self.data):
+                    end = len(self.data)
+
+                if self.data.ndim > 1:
+                    chunk = self.data[start:end, :]
+                else:
+                    chunk = self.data[start:end]
+
+                # Convert the chunk to float32
+                chunk = chunk.astype(np.float32)
+
+                stream.write(chunk)
+                self.position = end
+                if self.position >= len(self.data):
+                    break  
+
+    def stop(self):
+        self.stop_flag = True
+        self.pause()
+        self.position = 0 
 
 
 if __name__ == "__main__":
@@ -119,6 +163,16 @@ if __name__ == "__main__":
     tool.read_file("audio.mp3")
     #tool.plot()
     #tool.plot_fft()
-    tool.apply_stopband_filter(2500, 3000)
-    tool.fourier_transform()
-    tool.plot_fft(50,60)
+    #tool.apply_stopband_filter(2500, 3000)
+    #tool.fourier_transform()
+    #tool.plot_fft(50,60)
+
+    tool.play()
+    input("Press Enter to stop...")
+    tool.pause()
+    input("Press Enter to play again...")
+    tool.play()
+    input("Press Enter to pause...")
+    tool.pause()
+    input("Press Enter to exit...")
+    tool.stop()
