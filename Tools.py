@@ -1,62 +1,64 @@
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
+from scipy.fft import rfft, rfftfreq, irfft
 import numpy as np
 from pydub import AudioSegment
 from pydub.utils import mediainfo
 from scipy.signal import butter, lfilter
-import sounddevice as sd
 import threading
+import wave
+import pyaudio
 
 class Tools:
         
     def __init__(self):
         pass
+    
+    # Load the audio file as wav file
     def read_file(self, file_name):
-        if file_name.endswith(".wav"):
-            # self.sample_rate, self.data = wavfile.read(file_name)
-            # self.data = self.data[:,0]
-            audio = AudioSegment.from_file(file_name,format="wav")
-            if audio.channels > 1:
-                audio = audio.set_channels(1)
-            self.data = np.array(audio.get_array_of_samples())
-            self.sample_rate = int(mediainfo(file_name)['sample_rate'])
-            self.duration = mediainfo(file_name)['duration']
+        with wave.open(file_name, 'rb') as wf:
+            audio_signal = wf.readframes(wf.getnframes())
+            audio_signal = np.frombuffer(audio_signal, dtype=np.int16)
+           
+            self.data = audio_signal
+            self.sample_rate = wf.getframerate()
+            self.sample_width = wf.getsampwidth()
+            self.channels = wf.getnchannels()
+            self.nframes = wf.getnframes()
+            self.duration = self.nframes / float(self.sample_rate)
 
-        elif file_name.endswith(".mp3"):
-            audio = AudioSegment.from_file(file_name,format="mp3")
-            if audio.channels > 1:
-                audio = audio.set_channels(1)
-            self.data = np.array(audio.get_array_of_samples())
-            self.sample_rate = int(mediainfo(file_name)['sample_rate'])
-            self.duration = mediainfo(file_name)['duration']
-            print("duration: ", self.duration)
-        else:
-            print("File format not supported")
-            return
-        
+        self.normalized_data = np.int16((self.data / self.data.max()) * 32767)
         self.playback_thread = None
         self.position = 0
         self.paused = True
         self.stop_flag = False
         print(self.data.shape)
+        print(self.data.ndim)
 
+    # Apply FFT to the audio signal
     def fourier_transform(self):
-        fft_result = np.fft.fft(self.data)
-        self.fft_magnitude = np.abs(fft_result)
-        self.fft_frequencies = np.fft.fftfreq(len(fft_result), d=1/int(self.sample_rate))
+        self.fft_magnitude = rfft(self.normalized_data)
+        self.fft_frequencies = rfftfreq(len(self.normalized_data), d=1/self.sample_rate)
     
+
     def fourier_transform_range(self, range_low, range_high):
-        fft_result = np.fft.fft(self.data[range_low:range_high])
-        fft_magnitude = np.abs(fft_result)
-        fft_frequencies = np.fft.fftfreq(len(fft_result), d=1/int(self.sample_rate))
+        fft_magnitude = rfft(self.normalized_data[range_low:range_high])
+        fft_frequencies = rfftfreq(len(fft_magnitude), d=1/int(self.sample_rate))
         return fft_magnitude, fft_frequencies
     
     def inverse_fourier_transform(self):
-        self.inverse_fourier = np.fft.ifft(self.fft_magnitude)
+        inverse_fourier = irfft(self.fft_magnitude)
+        max_val = 32767
+        min_val = -32768
+        inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
+        self.inverse_fourier = np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
         
     def inverse_fourier_transform_range(self, range_low, range_high):
-        inverse_fourier = np.fft.ifft(self.fft_magnitude[range_low:range_high])
-        return inverse_fourier
+        inverse_fourier = irfft(self.fft_magnitude[range_low:range_high])
+        max_val = 32767
+        min_val = -32768
+        inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
+        return np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
 
     def apply_stopband_filter(self, low, high):
         def butter_bandstop_filter(lowcut, highcut, fs, order=5):
@@ -118,61 +120,69 @@ class Tools:
     def saveFile(self, file_name):
         wavfile.write(file_name, self.sample_rate, self.data)
     
-    def play(self):
+    def play(self, buffer_size):
         if self.paused:
             self.paused = False
             if self.playback_thread is None or not self.playback_thread.is_alive():
-                self.playback_thread = threading.Thread(target=self._play_audio)
+                self.playback_thread = threading.Thread(target=self._play_audio, args=(buffer_size,))
                 self.playback_thread.start()
 
-    def pause(self):
-        if not self.paused:
-            self.paused = True
-            sd.stop()
+    # def pause(self):
+    #     if not self.paused:
+    #         self.paused = True
+    #         sd.stop()
 
-    def _play_audio(self):
-        with sd.OutputStream(samplerate=self.sample_rate, channels=1) as stream:
-            while not self.paused and not self.stop_flag:
-                start = self.position
-                end = start + int(self.sample_rate * 0.5)  # Play half a second at a time
-                if end > len(self.data):
-                    end = len(self.data)
+    # Save audio file
+    def save(self, audio_signal, name="mySong.wav"):
+        with wave.open(fr"songs\\reconstructed\\wave_{name}", 'wb') as wf:
+            wf.setnchannels(self.channels)
+            wf.setsampwidth(self.sample_width)
+            wf.setframerate(self.sample_rate)
+            wf.writeframes(audio_signal.tobytes())
 
-                if self.data.ndim > 1:
-                    chunk = self.data[start:end, :]
-                else:
-                    chunk = self.data[start:end]
+    # Play audio file 
+    def _play_audio(self, buffer_size):
+        p = pyaudio.PyAudio()
+        stream = p.open(format=p.get_format_from_width(self.sample_width),
+                            channels=self.channels,
+                            rate=self.sample_rate,
+                            output=True)
+        
+        while not self.paused and not self.stop_flag:
+            end = min(self.position + buffer_size, len(self.normalized_data))
+            stream.write(self.normalized_data[self.position:end].tobytes())
+            self.position = end
 
-                # Convert the chunk to float32
-                chunk = chunk.astype(np.float32)
+            if end == len(self.normalized_data):
+                break
+            
+        stream.stop_stream()
+        stream.close()
 
-                stream.write(chunk)
-                self.position = end
-                if self.position >= len(self.data):
-                    break  
+        p.terminate()
 
     def stop(self):
         self.stop_flag = True
-        self.pause()
         self.position = 0 
 
 
 if __name__ == "__main__":
     print("Tools.py")
     tool = Tools()
-    tool.read_file("./songs/interstellar.mp3")
-    #tool.plot()
-    #tool.plot_fft()
-    #tool.apply_stopband_filter(2500, 3000)
-    #tool.fourier_transform()
-    #tool.plot_fft(50,60)
+    tool.read_file(r"D:\\Emir\\School\\Semester 6\\EE 473\\project\\audio\\Je te laisserai des mots.wav")
+    #tool.read_file("./songs/audio.mp3")
 
-    tool.play()
-    input("Press Enter to stop...")
-    tool.pause()
-    input("Press Enter to play again...")
-    tool.play()
-    input("Press Enter to pause...")
-    tool.pause()
+
+    tool.save(tool.data)
+    tool.play(512)
+
+    
+    # tool.play()
+    # input("Press Enter to stop...")
+    # tool.pause()
+    # input("Press Enter to play again...")
+    # tool.play()
+    # input("Press Enter to pause...")
+    # tool.pause()
     input("Press Enter to exit...")
     tool.stop()

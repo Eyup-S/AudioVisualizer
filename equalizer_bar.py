@@ -84,10 +84,10 @@ class EqualizerBar(QtWidgets.QWidget):
             for n in range(n_steps_to_draw):
                 brush.setColor(QtGui.QColor(self.steps[n]))
                 rect = QtCore.QRect(
-                    self._padding + (step_x * b) + bar_width_space,
-                    self._padding + d_height - ((1 + n) * step_y) + bar_height_space,
-                    bar_width,
-                    bar_height
+                    int(self._padding + (step_x * b) + bar_width_space),
+                    int(self._padding + d_height - ((1 + n) * step_y) + bar_height_space),
+                    int(bar_width),
+                    int(bar_height)
                 )
                 painter.fillRect(rect, brush)
 

@@ -24,13 +24,13 @@ class Widget(QWidget):
         self.setup_equalizers()
         self.setup_sliders()
 
-        self.tools.read_file('./songs/interstellar.mp3')
+        self.tools.read_file(r"D:\\Emir\\School\\Semester 6\\EE 473\\project\\audio\\Je te laisserai des mots.wav")
         self.current_second = 0
         self.setup_timer()
     
     def setup_timer(self):
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(constants.timestep * 1000)
+        self._timer.setInterval(int(100))
         self._timer.timeout.connect(self.play_song)
         self._timer.start()
 
@@ -51,14 +51,12 @@ class Widget(QWidget):
         for max_value in constants.equalizer_divisions:
             fft_mag_total = 0
             fft_freq_num = 0
-            while (fft_frequencies[i] < max_value):
+            while i < len(fft_frequencies) and fft_frequencies[i] < max_value + 1:
                 fft_mag_total += fft_magnitude[i] 
                 fft_freq_num += 1
-                i+=1
-                if (i >= len(fft_magnitude)):
-                    break
+                i += 1
 
-            values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001))* constants.magnitude_gain)) 
+            values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)) 
         self.old_equalizer.setValues(values)
 
 
