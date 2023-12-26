@@ -35,24 +35,26 @@ class Tools:
         print(self.data.shape)
         print(self.data.ndim)
 
-    # Apply FFT to the audio signal
+    # Apply RFFT to the audio signal, RFFT is used for computational efficiency
     def fourier_transform(self):
         self.fft_magnitude = rfft(self.normalized_data)
         self.fft_frequencies = rfftfreq(len(self.normalized_data), d=1/self.sample_rate)
     
-
+    # Apply RFFT to a specific range of an audio signal
     def fourier_transform_range(self, range_low, range_high):
         fft_magnitude = rfft(self.normalized_data[range_low:range_high])
         fft_frequencies = rfftfreq(len(fft_magnitude), d=1/int(self.sample_rate))
         return fft_magnitude, fft_frequencies
     
+    # Apply inverse RFFT
     def inverse_fourier_transform(self):
         inverse_fourier = irfft(self.fft_magnitude)
         max_val = 32767
         min_val = -32768
         inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
         self.inverse_fourier = np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
-        
+
+    # Apply inverse RFFT to a specific range of a RFFT magnitude signal   
     def inverse_fourier_transform_range(self, range_low, range_high):
         inverse_fourier = irfft(self.fft_magnitude[range_low:range_high])
         max_val = 32767
@@ -60,6 +62,7 @@ class Tools:
         inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
         return np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
 
+    # Apply bandpass filter
     def apply_stopband_filter(self, low, high):
         def butter_bandstop_filter(lowcut, highcut, fs, order=5):
             print("fs ", fs,"type: ", type(fs))
@@ -72,6 +75,7 @@ class Tools:
         b, a = butter_bandstop_filter(low, high, self.sample_rate)
         self.data = lfilter(b, a, self.data)
     
+    # Apply highpass filter
     def apply_highpass_filter(self, cutoff):
         def butter_highpass(cutoff, fs, order=5):
             nyq = 0.5 * fs
@@ -82,6 +86,7 @@ class Tools:
         b, a = butter_highpass(cutoff, self.sample_rate)
         self.data = lfilter(b, a, self.data)
     
+    # Apply lowpass filter
     def apply_lowpass_filter(self, cutoff):
         def butter_lowpass(cutoff, fs, order=5):
             nyq = 0.5 * fs
@@ -97,6 +102,7 @@ class Tools:
     def getSampleRate(self):
         return int(self.sample_rate)
     
+    # Plot the audio signal
     def plot(self,range_low,range_high):
         plt.figure(figsize=(12, 4))
         range_low = int( range_low / float(self.duration) * len(self.fft_frequencies))
@@ -107,6 +113,7 @@ class Tools:
         plt.ylabel("Amplitude")
         plt.show()
     
+    # Plot the FFT of the signal
     def plot_fft(self,range_low,range_high):
         plt.figure(figsize=(12, 4))
         range_low = int( range_low / float(self.duration) * len(self.fft_frequencies))
@@ -116,10 +123,8 @@ class Tools:
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
         plt.show()
-
-    def saveFile(self, file_name):
-        wavfile.write(file_name, self.sample_rate, self.data)
     
+    # Set and start the thread that will play the audio
     def play(self, buffer_size):
         if self.paused:
             self.paused = False
@@ -140,7 +145,7 @@ class Tools:
             wf.setframerate(self.sample_rate)
             wf.writeframes(audio_signal.tobytes())
 
-    # Play audio file 
+    # Play the audio file
     def _play_audio(self, buffer_size):
         p = pyaudio.PyAudio()
         stream = p.open(format=p.get_format_from_width(self.sample_width),
@@ -161,6 +166,7 @@ class Tools:
 
         p.terminate()
 
+    # Stop Condition
     def stop(self):
         self.stop_flag = True
         self.position = 0 
