@@ -91,11 +91,10 @@ class Tools:
     
     # Set and start the thread that will play the audio
     def play(self, buffer_size):
-        if self.paused:
-            self.paused = False
-            if self.playback_thread is None or not self.playback_thread.is_alive():
-                self.playback_thread = threading.Thread(target=self._play_audio, args=(buffer_size,))
-                self.playback_thread.start()
+        self.paused = False
+        if self.playback_thread is None or not self.playback_thread.is_alive():
+            self.playback_thread = threading.Thread(target=self._play_audio, args=(buffer_size,))
+            self.playback_thread.start()
 
     # Save audio file
     def save(self, audio_signal, name="mySong.wav"):
@@ -141,18 +140,18 @@ if __name__ == "__main__":
     print("Tools.py")
     tool = Tools()
     tool.read_file("Je te laisserai des mots.wav")
-    #tool.read_file("./songs/audio.mp3")
+    # tool.read_file("./songs/audio.mp3")
 
 
     tool.save(tool.data)
 
-    tool.play(128)
-
+    tool.play(128000)
     time.sleep(5)
     tool.gain_list = [12, 12, 0, 0, 0, 0]
     print("Bass boosting")
-
+    tool.paused = True
     time.sleep(5)
+    tool.play(12800)
     tool.gain_list = [0, 0, 12, 12, 0, 0]
     print("Mid boosting")
 

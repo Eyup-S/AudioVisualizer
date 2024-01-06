@@ -1,10 +1,10 @@
 from PyQt5 import QtWidgets, uic, QtCore
-from PyQt5.QtWidgets import QApplication, QWidget, QSlider
+from PyQt5.QtWidgets import QApplication, QWidget, QSlider, QPushButton
 from equalizer_bar import EqualizerBar
 
 import sys
-import random
 import time
+import math
 
 from Tools import Tools
 import constants
@@ -14,14 +14,14 @@ class Widget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         uic.loadUi('form.ui', self) # Load the .ui file
-        self.tools = Tools()
         self.setup_equalizers()
         self.setup_sliders()
+        self.play_button = self.findChild(QPushButton, f"pushButton")
+        self.play_button.pressed.connect(self.play_button_pressed)
+        self.tools = Tools()
 
         self.tools.read_file("Je te laisserai des mots.wav")
-        self.tools.gain_list = [0, 0, 0, 0, 0, 12, 12, 0, 0, 0, 0, 0]
-        self.tools.play(int(self.tools.sample_rate * constants.timestep))
-        time.sleep(5)
+        self.tools.gain_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.current_second = 0
         self.setup_timer()
     
@@ -32,16 +32,18 @@ class Widget(QWidget):
         self._timer.start()
 
     def play_song(self):
-        if (self.current_second < float(self.tools.duration)):
-            self.play_song_part(self.current_second)
-            self.current_second += constants.timestep
-            print(self.current_second)
+        if (not self.tools.paused):
+            if (self.current_second < float(self.tools.duration)):
+                self.play_song_part(self.current_second)
+                self.current_second += constants.timestep
+                print(self.current_second)
 
     def play_song_part(self, current_second):
         # divided_data = self.tools.data[int(current_second * self.tools.sample_rate): int((current_second + constants.timestep) * self.tools.sample_rate)]
         # fft_magnitude, fft_frequencies = self.tools.fourier_transform(divided_data)
-        self.update_old_equalizer(self.tools.input_mag, self.tools.input_freq)
-        self.update_new_equalizer(self.tools.output_mag, self.tools.input_freq)
+        if (self.tools.input_freq is not None):
+            self.update_old_equalizer(self.tools.input_mag, self.tools.input_freq)
+            self.update_new_equalizer(self.tools.output_mag, self.tools.input_freq)
 
     def update_old_equalizer(self, fft_magnitude, fft_frequencies):
         i = 0
@@ -49,13 +51,13 @@ class Widget(QWidget):
         for max_value in constants.equalizer_divisions:
             fft_mag_total = 0
             fft_freq_num = 0
+
             while i < len(fft_frequencies) and fft_frequencies[i] < max_value + 1:
                 fft_mag_total += fft_magnitude[i] 
                 fft_freq_num += 1
                 i += 1
 
-            values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)) 
-            print((fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)
+            values.append(min(100, math.log(abs(fft_mag_total / (fft_freq_num + 0.0001))) ** 2 * constants.magnitude_gain)) 
         self.old_equalizer.setValues(values)
 
     def update_new_equalizer(self, fft_magnitude, fft_frequencies):
@@ -69,7 +71,7 @@ class Widget(QWidget):
                 fft_freq_num += 1
                 i += 1
 
-            values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)) 
+            values.append(min(100, math.log(abs(fft_mag_total / (fft_freq_num + 0.0001))) ** 2 * constants.magnitude_gain)) 
         self.new_equalizer.setValues(values)
 
     def setup_equalizers(self):
@@ -83,7 +85,7 @@ class Widget(QWidget):
     def setup_sliders(self):
         self.sliders = []
         i = 0
-        while(i < self.horizontalLayout.count() - 1):
+        while(i < self.horizontalLayout.count()):
             self.sliders.append(self.findChild(QSlider, f"verticalSlider_{i}"))
             self.horizontalLayout.itemAt(i).widget().setValue(50)
             self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
@@ -95,16 +97,11 @@ class Widget(QWidget):
             self.tools.gain_list[i] = (self.sliders[i].value() - 50) / 2
             i += 1
     
-    # def update_values_random(self):
-    #     self.old_equalizer.setValues([
-    #         min(100, v+random.randint(0, 50) if random.randint(0, 5) > 2 else v)
-    #         for v in self.old_equalizer.values()
-    #         ])
-    #     self.new_equalizer.setValues([
-    #         min(100, v+random.randint(0, 50) if random.randint(2, 5) > 2 else v)
-    #         for v in self.new_equalizer.values()
-    #         ])
-
+    def play_button_pressed(self):
+        if (self.tools.paused):
+            self.tools.play(int(self.tools.sample_rate * constants.timestep))
+        else:
+            self.tools.paused = True
 
 
 if __name__ == "__main__":
