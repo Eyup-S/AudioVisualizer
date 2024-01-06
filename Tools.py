@@ -8,6 +8,8 @@ from scipy.signal import butter, lfilter
 import threading
 import wave
 import pyaudio
+import time
+
 
 class Tools:
         
@@ -27,40 +29,41 @@ class Tools:
             self.nframes = wf.getnframes()
             self.duration = self.nframes / float(self.sample_rate)
 
+        self.band_list = [(0, 60), (60, 250), (250, 2500), (2500, 8000), (8000, 16000), (16000, 22050)]
+        self.gain_list = [0, 0, 0, 0, 0, 0]
         self.normalized_data = np.int16((self.data / self.data.max()) * 32767)
         self.playback_thread = None
         self.position = 0
         self.paused = True
         self.stop_flag = False
-        print(self.data.shape)
-        print(self.data.ndim)
-
+        
     # Apply RFFT to the audio signal, RFFT is used for computational efficiency
-    def fourier_transform(self):
-        self.fft_magnitude = rfft(self.normalized_data)
-        self.fft_frequencies = rfftfreq(len(self.normalized_data), d=1/self.sample_rate)
-    
-    # Apply RFFT to a specific range of an audio signal
-    def fourier_transform_range(self, range_low, range_high):
-        fft_magnitude = rfft(self.normalized_data[range_low:range_high])
-        fft_frequencies = rfftfreq(len(fft_magnitude), d=1/int(self.sample_rate))
+    def fourier_transform(self, normalized_data):
+        fft_magnitude = rfft(normalized_data)
+        fft_frequencies = rfftfreq(len(normalized_data), d=1/self.sample_rate)
+
         return fft_magnitude, fft_frequencies
     
     # Apply inverse RFFT
-    def inverse_fourier_transform(self):
-        inverse_fourier = irfft(self.fft_magnitude)
-        max_val = 32767
-        min_val = -32768
-        inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
-        self.inverse_fourier = np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
-
-    # Apply inverse RFFT to a specific range of a RFFT magnitude signal   
-    def inverse_fourier_transform_range(self, range_low, range_high):
-        inverse_fourier = irfft(self.fft_magnitude[range_low:range_high])
+    def inverse_fourier_transform(self, fft):
+        inverse_fourier = irfft(fft)
         max_val = 32767
         min_val = -32768
         inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
         return np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
+
+    # Apply equalizer to the signal 
+    def equalizer(self, fft_mag, ftt_freq, bands_list, gain_list, save=False):
+        assert len(bands_list) == len(gain_list), "Lengths of band_list and gain_list should be the same."
+        scale_list = 10**(np.array(gain_list)/20)
+        equalized_fft = np.copy(fft_mag)
+
+        for (low, high), scale_factor in zip(bands_list, scale_list):
+            idx_band = np.logical_and(ftt_freq > low, ftt_freq < high)
+            equalized_fft[idx_band] = fft_mag[idx_band]* scale_factor
+
+        return self.inverse_fourier_transform(equalized_fft)
+
 
     # Apply bandpass filter
     def apply_stopband_filter(self, low, high):
@@ -132,11 +135,6 @@ class Tools:
                 self.playback_thread = threading.Thread(target=self._play_audio, args=(buffer_size,))
                 self.playback_thread.start()
 
-    # def pause(self):
-    #     if not self.paused:
-    #         self.paused = True
-    #         sd.stop()
-
     # Save audio file
     def save(self, audio_signal, name="mySong.wav"):
         with wave.open(fr"songs\\reconstructed\\wave_{name}", 'wb') as wf:
@@ -155,7 +153,10 @@ class Tools:
         
         while not self.paused and not self.stop_flag:
             end = min(self.position + buffer_size, len(self.normalized_data))
-            stream.write(self.normalized_data[self.position:end].tobytes())
+            fft_mag, fft_freq = self.fourier_transform(self.normalized_data[self.position:end])
+            equalized_data = self.equalizer(fft_mag, fft_freq, self.band_list, self.gain_list)
+
+            stream.write(equalized_data.tobytes())
             self.position = end
 
             if end == len(self.normalized_data):
@@ -175,20 +176,23 @@ class Tools:
 if __name__ == "__main__":
     print("Tools.py")
     tool = Tools()
-    tool.read_file(r"D:\\Emir\\School\\Semester 6\\EE 473\\project\\audio\\Je te laisserai des mots.wav")
-    #tool.read_file("./songs/audio.mp3")
-
-
+    tool.read_file("./songs/Je te laisserai des mots.wav")
     tool.save(tool.data)
-    tool.play(512)
 
-    
-    # tool.play()
-    # input("Press Enter to stop...")
-    # tool.pause()
-    # input("Press Enter to play again...")
-    # tool.play()
-    # input("Press Enter to pause...")
-    # tool.pause()
+    tool.play(128000)
+
+    time.sleep(5)
+    tool.gain_list = [12, 12, 0, 0, 0, 0]
+    print("Bass boosting")
+
+    time.sleep(5)
+    tool.gain_list = [0, 0, 12, 12, 0, 0]
+    print("Mid boosting")
+
+    time.sleep(5)
+    tool.gain_list = [0, 0, 0, 0, 12, 12]
+    print("High boosting")
+
+
     input("Press Enter to exit...")
     tool.stop()
