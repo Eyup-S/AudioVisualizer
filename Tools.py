@@ -8,6 +8,8 @@ from scipy.signal import butter, lfilter
 import threading
 import wave
 import pyaudio
+import pathlib
+
 
 class Tools:
         
@@ -16,7 +18,7 @@ class Tools:
     
     # Load the audio file as wav file
     def read_file(self, file_name):
-        with wave.open(file_name, 'rb') as wf:
+        with wave.open(pathlib.Path(__file__).parent.resolve().joinpath('songs').joinpath(file_name).as_posix() , 'rb') as wf:
             audio_signal = wf.readframes(wf.getnframes())
             audio_signal = np.frombuffer(audio_signal, dtype=np.int16)
            
@@ -175,7 +177,7 @@ class Tools:
 if __name__ == "__main__":
     print("Tools.py")
     tool = Tools()
-    tool.read_file(r"D:\\Emir\\School\\Semester 6\\EE 473\\project\\audio\\Je te laisserai des mots.wav")
+    tool.read_file("Je te laisserai des mots.wav")
     #tool.read_file("./songs/audio.mp3")
 
 
