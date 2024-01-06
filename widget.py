@@ -1,4 +1,3 @@
-# This Python file uses the following encoding: utf-8
 from PyQt5 import QtWidgets, uic, QtCore
 from PyQt5.QtWidgets import QApplication, QWidget, QSlider
 from equalizer_bar import EqualizerBar
@@ -10,11 +9,6 @@ import time
 from Tools import Tools
 import constants
 
-# Important:
-# You need to run the following command to generate the ui_form.py file
-#     pyside6-uic form.ui -o ui_form.py, or
-#     pyside2-uic form.ui -o ui_form.py
-#from ui_form import Ui_Widget
 
 class Widget(QWidget):
     def __init__(self, parent=None):
@@ -24,13 +18,16 @@ class Widget(QWidget):
         self.setup_equalizers()
         self.setup_sliders()
 
-        self.tools.read_file(r"D:\\Emir\\School\\Semester 6\\EE 473\\project\\audio\\Je te laisserai des mots.wav")
+        self.tools.read_file("Je te laisserai des mots.wav")
+        self.tools.gain_list = [0, 0, 0, 0, 0, 12, 12, 0, 0, 0, 0, 0]
+        self.tools.play(int(self.tools.sample_rate * constants.timestep))
+        time.sleep(5)
         self.current_second = 0
         self.setup_timer()
     
     def setup_timer(self):
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(int(100))
+        self._timer.setInterval(constants.timestep * 1000)
         self._timer.timeout.connect(self.play_song)
         self._timer.start()
 
@@ -41,9 +38,10 @@ class Widget(QWidget):
             print(self.current_second)
 
     def play_song_part(self, current_second):
-        fft_magnitude, fft_frequencies = self.tools.fourier_transform_range(int(current_second * self.tools.getSampleRate()),  int((current_second + constants.timestep) * self.tools.getSampleRate()))
-        self.update_old_equalizer(fft_magnitude, fft_frequencies)
-        # time.sleep(constants.timestep)
+        # divided_data = self.tools.data[int(current_second * self.tools.sample_rate): int((current_second + constants.timestep) * self.tools.sample_rate)]
+        # fft_magnitude, fft_frequencies = self.tools.fourier_transform(divided_data)
+        self.update_old_equalizer(self.tools.input_mag, self.tools.input_freq)
+        self.update_new_equalizer(self.tools.output_mag, self.tools.input_freq)
 
     def update_old_equalizer(self, fft_magnitude, fft_frequencies):
         i = 0
@@ -57,8 +55,22 @@ class Widget(QWidget):
                 i += 1
 
             values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)) 
+            print((fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)
         self.old_equalizer.setValues(values)
 
+    def update_new_equalizer(self, fft_magnitude, fft_frequencies):
+        i = 0
+        values = []
+        for max_value in constants.equalizer_divisions:
+            fft_mag_total = 0
+            fft_freq_num = 0
+            while i < len(fft_frequencies) and fft_frequencies[i] < max_value + 1:
+                fft_mag_total += fft_magnitude[i] 
+                fft_freq_num += 1
+                i += 1
+
+            values.append(min(100, (fft_mag_total / (fft_freq_num + 0.0001)) * constants.magnitude_gain)) 
+        self.new_equalizer.setValues(values)
 
     def setup_equalizers(self):
         self.old_equalizer = EqualizerBar(12, ['#0C0786', '#40039C', '#6A00A7', '#8F0DA3', '#B02A8F', '#CA4678', '#E06461',
@@ -71,12 +83,18 @@ class Widget(QWidget):
     def setup_sliders(self):
         self.sliders = []
         i = 0
-        while(i < self.horizontalLayout.count()):
+        while(i < self.horizontalLayout.count() - 1):
             self.sliders.append(self.findChild(QSlider, f"verticalSlider_{i}"))
             self.horizontalLayout.itemAt(i).widget().setValue(50)
+            self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
             i +=1
 
-
+    def update_sliders(self):
+        i = 0
+        while(i < len(self.sliders)):
+            self.tools.gain_list[i] = (self.sliders[i].value() - 50) / 2
+            i += 1
+    
     # def update_values_random(self):
     #     self.old_equalizer.setValues([
     #         min(100, v+random.randint(0, 50) if random.randint(0, 5) > 2 else v)
