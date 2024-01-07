@@ -1,10 +1,11 @@
-from PyQt5 import QtWidgets, uic, QtCore
-from PyQt5.QtWidgets import QApplication, QWidget, QSlider, QPushButton
+from PyQt5 import QtWidgets, uic, QtCore, QtGui
+from PyQt5.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit
 from equalizer_bar import EqualizerBar
 
 import sys
 import time
 import math
+import os
 
 from Tools import Tools
 import constants
@@ -16,6 +17,8 @@ class Widget(QWidget):
         uic.loadUi('form.ui', self) # Load the .ui file
         self.setup_equalizers()
         self.setup_sliders()
+        self.setup_songs_list()
+        self.setup_noise_reduction()
         self.play_button = self.findChild(QPushButton, f"pushButton")
         self.play_button.pressed.connect(self.play_button_pressed)
         self.tools = Tools()
@@ -91,6 +94,40 @@ class Widget(QWidget):
             self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
             i +=1
 
+    def setup_songs_list(self):
+        self.songs_list = self.findChild(QtWidgets.QListWidget, "listWidget")
+        songs = os.listdir('./songs')
+        for song in songs:
+            if song.endswith(".wav"):
+                self.songs_list.addItem(QListWidgetItem(song))
+        self.songs_list.setCurrentItem(self.songs_list.item(0))
+        self.current_song = self.songs_list.currentItem().text()
+
+    def setup_noise_reduction(self):
+        self.noise_sliders = []
+        i = 0
+        while(i < self.horizontalLayout_6.count()):
+            self.sliders.append(self.findChild(QSlider, f"NverticalSlider_{i}"))
+            self.horizontalLayout.itemAt(i).widget().setValue(50)
+            self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
+            i +=1
+        
+        self.noise_max_boxes = []
+        i = 0
+        while(i < self.horizontalLayout_7.count()):
+            self.noise_max_boxes.append(self.findChild(QLineEdit, f"lineEdit_{5 + i}"))
+            self.horizontalLayout_7.itemAt(i).widget().setText("0")
+            self.horizontalLayout_7.itemAt(i).widget().setValidator(QtGui.QIntValidator())
+            i +=1
+
+        self.noise_min_boxes = []
+        i = 0
+        while(i < self.horizontalLayout_5.count()):
+            self.noise_min_boxes.append(self.findChild(QLineEdit, f"lineEdit_{i}"))
+            self.horizontalLayout_5.itemAt(i).widget().setText("0")
+            self.horizontalLayout_5.itemAt(i).widget().setValidator(QtGui.QIntValidator())
+            i +=1
+
     def update_sliders(self):
         i = 0
         while(i < len(self.sliders)):
@@ -98,6 +135,11 @@ class Widget(QWidget):
             i += 1
     
     def play_button_pressed(self):
+        if (self.current_song != self.songs_list.currentItem().text()):
+            self.tools.stop()
+            self.tools.read_file(self.songs_list.currentItem().text())
+            self.current_song = self.songs_list.currentItem().text()
+            self.current_second = 0
         if (self.tools.paused):
             self.tools.play(int(self.tools.sample_rate * constants.timestep))
         else:
