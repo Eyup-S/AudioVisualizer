@@ -67,6 +67,38 @@ class Tools:
 
         return self.inverse_fourier_transform(equalized_fft), equalized_fft
     
+    def spectral_gate(self,fft_signal, freq_bands, thresholds):
+        """
+        :param freq_bands: List of frequency bands (each band is a tuple of start and end frequencies).
+        :param thresholds: List of threshold percentages for each frequency band.
+ 
+        """
+        # Number of samples in the FFT signal
+        num_samples = len(fft_signal)
+
+        # Frequency resolution
+        freq_resolution = self.sample_rate / num_samples
+
+        # Function to find the index range for a given frequency band
+        def get_index_range(freq_band):
+            start_idx = int(freq_band[0] / freq_resolution)
+            end_idx = int(freq_band[1] / freq_resolution)
+            return start_idx, end_idx
+
+        # Apply spectral gate for each frequency band
+        for band, threshold in zip(freq_bands, thresholds):
+            start_idx, end_idx = get_index_range(band)
+            band_magnitudes = np.abs(fft_signal[start_idx:end_idx])
+            max_magnitude = np.max(band_magnitudes)
+            threshold_value = max_magnitude * (threshold / 100)
+
+            # Apply threshold
+            for i in range(start_idx, end_idx):
+                if np.abs(fft_signal[i]) < threshold_value:
+                    fft_signal[i] = 0
+
+        return fft_signal
+    
     # Plot the audio signal
     def plot(self,range_low,range_high):
         plt.figure(figsize=(12, 4))
@@ -152,13 +184,12 @@ if __name__ == "__main__":
     tool.paused = True
     time.sleep(5)
     tool.play(12800)
-    tool.gain_list = [0, 0, 12, 12, 0, 0]
+    tool.gain_list = [0, 0, 12, 12, 0, 0,    0, 0, 0, 0, 0, 0]
     print("Mid boosting")
 
     time.sleep(5)
     tool.gain_list = [0, 0, 0, 0, 12, 12]
     print("High boosting")
-
 
     input("Press Enter to exit...")
     tool.stop()
