@@ -23,6 +23,8 @@ class Tools:
         self.output_mag = None
         self.input_freq = None
         self.input_mag = None
+        self.nr_freq_bands = None
+        self.nr_thresholds = None
     
     # Load the audio file as wav file
     def read_file(self, file_name):
@@ -67,12 +69,15 @@ class Tools:
 
         return self.inverse_fourier_transform(equalized_fft), equalized_fft
     
-    def spectral_gate(self,fft_signal, freq_bands, thresholds):
+    def spectral_gate(self,fft_signal):
         """
         :param freq_bands: List of frequency bands (each band is a tuple of start and end frequencies).
         :param thresholds: List of threshold percentages for each frequency band.
  
         """
+        if (self.nr_freq_bands is None) and (self.nr_thresholds is None):
+            return fft_signal
+        
         # Number of samples in the FFT signal
         num_samples = len(fft_signal)
 
@@ -86,7 +91,7 @@ class Tools:
             return start_idx, end_idx
 
         # Apply spectral gate for each frequency band
-        for band, threshold in zip(freq_bands, thresholds):
+        for band, threshold in zip(self.nr_freq_bands, self.nr_thresholds):
             start_idx, end_idx = get_index_range(band)
             band_magnitudes = np.abs(fft_signal[start_idx:end_idx])
             max_magnitude = np.max(band_magnitudes)
@@ -146,11 +151,10 @@ class Tools:
         
         while not self.paused and not self.stop_flag:
             end = min(self.position + buffer_size, len(self.normalized_data))
-            fft_mag, fft_freq = self.fourier_transform(self.normalized_data[self.position:end])
-            self.input_mag = fft_mag
-            self.input_freq = fft_freq
-            equalized_data, self.output_mag = self.equalizer(fft_mag, fft_freq, self.band_list, self.gain_list)
-
+            self.input_mag , self.input_freq = self.fourier_transform(self.normalized_data[self.position:end])
+            equalized_data, self.output_mag = self.equalizer(self.input_mag, self.input_freq, self.band_list, self.gain_list)
+            equalized_data = self.inverse_fourier_transform(self.spectral_gate(equalized_data))
+            
             stream.write(equalized_data.tobytes())
             self.position = end
 
