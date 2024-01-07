@@ -8,6 +8,7 @@ import math
 import os
 
 from Tools import Tools
+from NoiseReduction import NoiseReduction
 import constants
 
 
@@ -89,9 +90,9 @@ class Widget(QWidget):
         self.sliders = []
         i = 0
         while(i < self.horizontalLayout.count()):
-            self.sliders.append(self.findChild(QSlider, f"verticalSlider_{i}"))
-            self.horizontalLayout.itemAt(i).widget().setValue(50)
-            self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
+            self.sliders.append(self.tabWidget.findChild(QSlider, f"verticalSlider_{i}"))
+            self.sliders[i].setValue(50)
+            self.sliders[i].valueChanged.connect(self.update_sliders)
             i +=1
 
     def setup_songs_list(self):
@@ -107,9 +108,9 @@ class Widget(QWidget):
         self.noise_sliders = []
         i = 0
         while(i < self.horizontalLayout_6.count()):
-            self.sliders.append(self.findChild(QSlider, f"NverticalSlider_{i}"))
+            self.noise_sliders.append(self.findChild(QSlider, f"NverticalSlider_{i}"))
             self.horizontalLayout.itemAt(i).widget().setValue(50)
-            self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
+            # self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
             i +=1
         
         self.noise_max_boxes = []
@@ -131,7 +132,7 @@ class Widget(QWidget):
     def update_sliders(self):
         i = 0
         while(i < len(self.sliders)):
-            self.tools.gain_list[i] = (self.sliders[i].value() - 50) / 2
+            self.tools.gain_list[i] = (self.sliders[i].value() - 50) * 2
             i += 1
     
     def play_button_pressed(self):
