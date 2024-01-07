@@ -153,28 +153,28 @@ class NoiseReduction:
 
 
 
+if __name__ == "__main__":
+    nr = NoiseReduction()
 
-nr = NoiseReduction()
+    nr.read_file('Je te laisserai des mots.wav')
+    nr.input_mag, nr.input_freq = nr.fourier_transform(nr.normalized_data)
+    # nr.plot(nr.normalized_data,nr.input_freq,0,50)
+    # nr.plot_fft(nr.input_mag,nr.input_freq,0,50)
+    print("Normal audio...")
+    nr.play(128000)
+    time.sleep(5)
+    nr.stop()
+    freq_bands = [(100, 600), (600, 1000), (1000, 4000)] 
+    thresholds = [20, 30, 50]
 
-nr.read_file('Je te laisserai des mots.wav')
-nr.input_mag, nr.input_freq = nr.fourier_transform(nr.normalized_data)
-# nr.plot(nr.normalized_data,nr.input_freq,0,50)
-# nr.plot_fft(nr.input_mag,nr.input_freq,0,50)
-print("Normal audio...")
-nr.play(128000)
-time.sleep(5)
-nr.stop()
-freq_bands = [(100, 600), (600, 1000), (1000, 4000)] 
-thresholds = [20, 30, 50]
+    gated_fft = nr.spectral_gate(nr.input_mag,freq_bands,thresholds)
+    print("Gated...")
+    # nr.plot_fft(gated_fft,nr.input_freq,0,50)
+    gated_signal = nr.inverse_fourier_transform(gated_fft)
+    # nr.plot(gated_signal,nr.input_freq,0,50)
+    nr.normalized_data = np.int16((gated_signal / gated_signal.max()) * 32767)
+    nr.gain_list = [0, 0, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0]
+    nr.play(128000)
 
-gated_fft = nr.spectral_gate(nr.input_mag,freq_bands,thresholds)
-print("Gated...")
-# nr.plot_fft(gated_fft,nr.input_freq,0,50)
-gated_signal = nr.inverse_fourier_transform(gated_fft)
-# nr.plot(gated_signal,nr.input_freq,0,50)
-nr.normalized_data = np.int16((gated_signal / gated_signal.max()) * 32767)
-nr.gain_list = [0, 0, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0]
-nr.play(128000)
-
-input("Press Enter to exit...")
-nr.stop()
+    input("Press Enter to exit...")
+    nr.stop()

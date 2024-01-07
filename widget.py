@@ -25,7 +25,6 @@ class Widget(QWidget):
         self.tools = Tools()
 
         self.tools.read_file("Je te laisserai des mots.wav")
-        self.tools.gain_list = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         self.current_second = 0
         self.setup_timer()
     
@@ -92,7 +91,7 @@ class Widget(QWidget):
         while(i < self.horizontalLayout.count()):
             self.sliders.append(self.tabWidget.findChild(QSlider, f"verticalSlider_{i}"))
             self.sliders[i].setValue(50)
-            self.sliders[i].valueChanged.connect(self.update_sliders)
+            self.sliders[i].sliderReleased.connect(self.update_sliders)
             i +=1
 
     def setup_songs_list(self):
@@ -109,7 +108,7 @@ class Widget(QWidget):
         i = 0
         while(i < self.horizontalLayout_6.count()):
             self.noise_sliders.append(self.findChild(QSlider, f"NverticalSlider_{i}"))
-            self.horizontalLayout.itemAt(i).widget().setValue(50)
+            self.horizontalLayout_6.itemAt(i).widget().setValue(50)
             # self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
             i +=1
         
