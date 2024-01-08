@@ -75,7 +75,7 @@ class Tools:
         :param thresholds: List of threshold percentages for each frequency band.
  
         """
-        if (self.nr_freq_bands is None) and (self.nr_thresholds is None):
+        if (self.nr_freq_bands is None) or (self.nr_thresholds is None):
             return fft_signal
         
         # Number of samples in the FFT signal
@@ -129,6 +129,7 @@ class Tools:
     # Set and start the thread that will play the audio
     def play(self, buffer_size):
         self.paused = False
+        self.stop_flag = False
         if self.playback_thread is None or not self.playback_thread.is_alive():
             self.playback_thread = threading.Thread(target=self._play_audio, args=(buffer_size,))
             self.playback_thread.start()
@@ -150,11 +151,10 @@ class Tools:
                             output=True)
         
         while not self.paused and not self.stop_flag:
-            end = min(self.position + buffer_size, len(self.normalized_data))
+            end = min(self.position + int(buffer_size * 2), len(self.normalized_data))
             self.input_mag , self.input_freq = self.fourier_transform(self.normalized_data[self.position:end])
             equalized_data, self.output_mag = self.equalizer(self.input_mag, self.input_freq, self.band_list, self.gain_list)
-            equalized_data = self.inverse_fourier_transform(self.spectral_gate(equalized_data))
-            
+            equalized_data = self.inverse_fourier_transform(self.spectral_gate(self.output_mag))
             stream.write(equalized_data.tobytes())
             self.position = end
 

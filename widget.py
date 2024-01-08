@@ -1,5 +1,5 @@
-from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit
+from PyQt6 import QtWidgets, uic, QtCore, QtGui
+from PyQt6.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit
 from equalizer_bar import EqualizerBar
 
 import sys
@@ -19,18 +19,19 @@ class Widget(QWidget):
         self.setup_equalizers()
         self.setup_sliders()
         self.setup_songs_list()
+        self.tools = Tools()
         self.setup_noise_reduction()
         self.play_button = self.findChild(QPushButton, f"pushButton")
         self.play_button.pressed.connect(self.play_button_pressed)
-        self.tools = Tools()
+        self.tools.paused = True
 
-        self.tools.read_file("Je te laisserai des mots.wav")
         self.current_second = 0
+        self.current_song = None
         self.setup_timer()
     
     def setup_timer(self):
         self._timer = QtCore.QTimer()
-        self._timer.setInterval(constants.timestep * 1000)
+        self._timer.setInterval(int(constants.timestep * 1000))
         self._timer.timeout.connect(self.play_song)
         self._timer.start()
 
@@ -42,8 +43,6 @@ class Widget(QWidget):
                 print(self.current_second)
 
     def play_song_part(self, current_second):
-        # divided_data = self.tools.data[int(current_second * self.tools.sample_rate): int((current_second + constants.timestep) * self.tools.sample_rate)]
-        # fft_magnitude, fft_frequencies = self.tools.fourier_transform(divided_data)
         if (self.tools.input_freq is not None):
             self.update_old_equalizer(self.tools.input_mag, self.tools.input_freq)
             self.update_new_equalizer(self.tools.output_mag, self.tools.input_freq)
@@ -56,11 +55,11 @@ class Widget(QWidget):
             fft_freq_num = 0
 
             while i < len(fft_frequencies) and fft_frequencies[i] < max_value + 1:
-                fft_mag_total += fft_magnitude[i] 
+                fft_mag_total += abs(fft_magnitude[i]) 
                 fft_freq_num += 1
                 i += 1
 
-            values.append(min(100, math.log(abs(fft_mag_total / (fft_freq_num + 0.0001))) ** 2 * constants.magnitude_gain)) 
+            values.append(min(100, math.log(fft_mag_total / (fft_freq_num + 0.0001)) ** 2 * constants.magnitude_gain)) 
         self.old_equalizer.setValues(values)
 
     def update_new_equalizer(self, fft_magnitude, fft_frequencies):
@@ -70,18 +69,25 @@ class Widget(QWidget):
             fft_mag_total = 0
             fft_freq_num = 0
             while i < len(fft_frequencies) and fft_frequencies[i] < max_value + 1:
-                fft_mag_total += fft_magnitude[i] 
+                fft_mag_total += abs(fft_magnitude[i]) 
                 fft_freq_num += 1
                 i += 1
-
-            values.append(min(100, math.log(abs(fft_mag_total / (fft_freq_num + 0.0001))) ** 2 * constants.magnitude_gain)) 
+            values.append(min(100, math.log(fft_mag_total / (fft_freq_num + 0.0001) + 1) ** 2 * constants.magnitude_gain)) 
         self.new_equalizer.setValues(values)
 
     def setup_equalizers(self):
-        self.old_equalizer = EqualizerBar(12, ['#0C0786', '#40039C', '#6A00A7', '#8F0DA3', '#B02A8F', '#CA4678', '#E06461',
-                                          '#F1824C', '#FCA635', '#FCCC25', '#EFF821'])
-        self.new_equalizer = EqualizerBar(12, ['#0C0786', '#40039C', '#6A00A7', '#8F0DA3', '#B02A8F', '#CA4678', '#E06461',
-                                        '#F1824C', '#FCA635', '#FCCC25', '#EFF821'])
+        self.old_equalizer = EqualizerBar(9, [
+                                            '#0C0786', '#2B0593', '#47029E', '#6001A4', '#7705A6', 
+                                            '#8D0CA3', '#A01C98', '#B32D8C', '#C23E7F', '#D04F71', 
+                                            '#DD6064', '#E87257', '#F2844B', '#F8993D', '#FCAF31', 
+                                            '#FCC528', '#F7DE23', '#EFF821'
+                                        ])
+        self.new_equalizer = EqualizerBar(9, [
+                                            '#0C0786', '#2B0593', '#47029E', '#6001A4', '#7705A6', 
+                                            '#8D0CA3', '#A01C98', '#B32D8C', '#C23E7F', '#D04F71', 
+                                            '#DD6064', '#E87257', '#F2844B', '#F8993D', '#FCAF31', 
+                                            '#FCC528', '#F7DE23', '#EFF821'
+                                        ])
         self.horizontalLayout_2.addWidget(self.old_equalizer)
         self.horizontalLayout_2.addWidget(self.new_equalizer)
 
@@ -108,30 +114,45 @@ class Widget(QWidget):
         i = 0
         while(i < self.horizontalLayout_6.count()):
             self.noise_sliders.append(self.findChild(QSlider, f"NverticalSlider_{i}"))
-            self.horizontalLayout_6.itemAt(i).widget().setValue(50)
-            # self.horizontalLayout.itemAt(i).widget().valueChanged.connect(self.update_sliders)
+            self.horizontalLayout_6.itemAt(i).widget().setValue(0)
+            self.noise_sliders[i].sliderReleased.connect(self.update_noise_sliders)
             i +=1
-        
+
         self.noise_max_boxes = []
         i = 0
         while(i < self.horizontalLayout_7.count()):
             self.noise_max_boxes.append(self.findChild(QLineEdit, f"lineEdit_{5 + i}"))
-            self.horizontalLayout_7.itemAt(i).widget().setText("0")
+            self.horizontalLayout_7.itemAt(i).widget().setText(str(constants.default_nr_freq[i][1]))
             self.horizontalLayout_7.itemAt(i).widget().setValidator(QtGui.QIntValidator())
+            self.noise_max_boxes[i].editingFinished.connect(self.update_noise_sliders)
             i +=1
 
         self.noise_min_boxes = []
         i = 0
         while(i < self.horizontalLayout_5.count()):
             self.noise_min_boxes.append(self.findChild(QLineEdit, f"lineEdit_{i}"))
-            self.horizontalLayout_5.itemAt(i).widget().setText("0")
+            self.horizontalLayout_5.itemAt(i).widget().setText(str(constants.default_nr_freq[i][0]))
             self.horizontalLayout_5.itemAt(i).widget().setValidator(QtGui.QIntValidator())
+            self.noise_min_boxes[i].editingFinished.connect(self.update_noise_sliders)
             i +=1
+
+        self.tools.nr_freq_bands = constants.default_nr_freq
+        self.tools.nr_thresholds = [0] * len(constants.default_nr_freq)
+
+    def update_noise_sliders(self):
+        i = 0
+        while(i < len(self.noise_sliders)):
+            self.tools.nr_thresholds[i] = self.noise_sliders[i].value()
+            i += 1
+        i = 0
+        while(i < len(self.noise_max_boxes)):
+            self.tools.nr_freq_bands[i] = (int(self.noise_min_boxes[i].text()), int(self.noise_max_boxes[i].text()))
+            i += 1
 
     def update_sliders(self):
         i = 0
         while(i < len(self.sliders)):
-            self.tools.gain_list[i] = (self.sliders[i].value() - 50) * 2
+            self.tools.gain_list[i] = (self.sliders[i].value() - 50) / 2
             i += 1
     
     def play_button_pressed(self):
@@ -150,4 +171,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = Widget()
     widget.showMaximized()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
