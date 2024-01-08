@@ -1,7 +1,10 @@
 import matplotlib.pyplot as plt
 
 from scipy.fft import rfft, rfftfreq, irfft
+
+import io
 import numpy as np
+from PIL import Image
 
 import threading
 import wave
@@ -105,26 +108,50 @@ class Tools:
         return fft_signal
     
     # Plot the audio signal
-    def plot(self,range_low,range_high):
+    @staticmethod
+    def plot(fft_mag,fft_frequencies,range_low,range_high, duration):
         plt.figure(figsize=(12, 4))
-        range_low = int( range_low / float(self.duration) * len(self.fft_frequencies))
-        range_high = int( range_high / float(self.duration) * len(self.fft_frequencies))
-        plt.plot(self.data[range_low:range_high])
+        range_low = int( range_low / float(duration) * len(fft_frequencies))
+        range_high = int( range_high / float(duration) * len(fft_frequencies))
+        plt.plot(fft_mag[range_low:range_high])
         plt.title("Waveform of the Audio")
         plt.xlabel("Sample Number")
         plt.ylabel("Amplitude")
-        plt.show()
-    
-    # Plot the FFT of the signal
-    def plot_fft(self,range_low,range_high):
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # Open the image and convert to a NumPy array
+        img = Image.open(buf)
+        img_array = np.asarray(img)
+
+        # Close the buffer
+        buf.close()
+
+        return img_array
+
+    @staticmethod
+    def plot_fft(fft_magnitude,fft_frequencies,range_low,range_high, duration):
         plt.figure(figsize=(12, 4))
-        range_low = int( range_low / float(self.duration) * len(self.fft_frequencies))
-        range_high = int( range_high / float(self.duration) * len(self.fft_frequencies))
-        plt.plot(self.fft_frequencies[range_low:range_high], self.fft_magnitude[range_low:range_high])
-        plt.title("Fourier Transform of the Audio")
+        range_low = int( range_low / float(duration) * len(fft_frequencies))
+        range_high = int( range_high / float(duration) * len(fft_frequencies))
+        plt.plot(fft_frequencies[range_low:range_high], abs(fft_magnitude[range_low:range_high]))
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
-        plt.show()
+        
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+
+        # Open the image and convert to a NumPy array
+        img = Image.open(buf)
+        img_array = np.asarray(img)
+
+        # Close the buffer
+        buf.close()
+
+        return img_array
     
     # Set and start the thread that will play the audio
     def play(self, buffer_size):

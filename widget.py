@@ -1,11 +1,13 @@
 from PyQt6 import QtWidgets, uic, QtCore, QtGui
-from PyQt6.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit
+from PyQt6.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel
+from PyQt6.QtGui import QPixmap, QImage
 from equalizer_bar import EqualizerBar
 
 import sys
 import time
 import math
 import os
+import numpy as np
 
 from Tools import Tools
 from NoiseReduction import NoiseReduction
@@ -19,6 +21,7 @@ class Widget(QWidget):
         self.setup_equalizers()
         self.setup_sliders()
         self.setup_songs_list()
+        self.setup_plots()
         self.tools = Tools()
         self.setup_noise_reduction()
         self.play_button = self.findChild(QPushButton, f"pushButton")
@@ -76,13 +79,13 @@ class Widget(QWidget):
         self.new_equalizer.setValues(values)
 
     def setup_equalizers(self):
-        self.old_equalizer = EqualizerBar(9, [
+        self.old_equalizer = EqualizerBar(18, [
                                             '#0C0786', '#2B0593', '#47029E', '#6001A4', '#7705A6', 
                                             '#8D0CA3', '#A01C98', '#B32D8C', '#C23E7F', '#D04F71', 
                                             '#DD6064', '#E87257', '#F2844B', '#F8993D', '#FCAF31', 
                                             '#FCC528', '#F7DE23', '#EFF821'
                                         ])
-        self.new_equalizer = EqualizerBar(9, [
+        self.new_equalizer = EqualizerBar(18, [
                                             '#0C0786', '#2B0593', '#47029E', '#6001A4', '#7705A6', 
                                             '#8D0CA3', '#A01C98', '#B32D8C', '#C23E7F', '#D04F71', 
                                             '#DD6064', '#E87257', '#F2844B', '#F8993D', '#FCAF31', 
@@ -139,6 +142,15 @@ class Widget(QWidget):
         self.tools.nr_freq_bands = constants.default_nr_freq
         self.tools.nr_thresholds = [0] * len(constants.default_nr_freq)
 
+    def setup_plots(self):
+        i = 0
+        self.plots = []
+        while(i < 3):
+            self.plots.append(self.findChild(QLabel, f"label_{i}"))
+            i += 1
+        self.play_button = self.findChild(QPushButton, f"plotButton")
+        self.play_button.pressed.connect(self.plot_button_pressed)
+
     def update_noise_sliders(self):
         i = 0
         while(i < len(self.noise_sliders)):
@@ -166,6 +178,26 @@ class Widget(QWidget):
         else:
             self.tools.paused = True
 
+    def plot_button_pressed(self):
+        fft_mag, fft_freq = self.tools.fourier_transform(self.tools.normalized_data)
+        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 20, self.tools.duration)
+        height, width, channels = img_array.shape
+        bytes_per_line = img_array.strides[0]
+        q_img = QImage(img_array.data, width, height, img_array.strides[0], QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+        self.plots[0].setPixmap(pixmap)
+        self.plots[0].setScaledContents(True)
+
+        _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
+        fft_mag = self.tools.spectral_gate(fft_mag)
+        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 20, self.tools.duration)
+        height, width, channels = img_array.shape
+        bytes_per_line = img_array.strides[0]
+        q_img = QImage(img_array.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
+        pixmap = QPixmap.fromImage(q_img)
+        self.plots[2].setPixmap(pixmap)
+        self.plots[2].setScaledContents(True)
+        
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

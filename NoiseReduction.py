@@ -98,7 +98,7 @@ class NoiseReduction:
         plt.figure(figsize=(12, 4))
         range_low = int( range_low / float(self.duration) * len(fft_frequencies))
         range_high = int( range_high / float(self.duration) * len(fft_frequencies))
-        plt.plot(fft_frequencies[range_low:range_high], fft_magnitude[range_low:range_high])
+        plt.plot(fft_frequencies[range_low:range_high], abs(fft_magnitude[range_low:range_high]))
         plt.title("Fourier Transform of the Audio")
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
@@ -169,9 +169,9 @@ if __name__ == "__main__":
 
     gated_fft = nr.spectral_gate(nr.input_mag,freq_bands,thresholds)
     print("Gated...")
-    # nr.plot_fft(gated_fft,nr.input_freq,0,50)
+    nr.plot_fft(gated_fft,nr.input_freq,0,50)
     gated_signal = nr.inverse_fourier_transform(gated_fft)
-    # nr.plot(gated_signal,nr.input_freq,0,50)
+    nr.plot(gated_signal,nr.input_freq,0,50)
     nr.normalized_data = np.int16((gated_signal / gated_signal.max()) * 32767)
     nr.gain_list = [0, 0, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0]
     nr.play(128000)
