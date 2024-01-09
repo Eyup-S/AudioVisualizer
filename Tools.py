@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 
 from scipy.fft import rfft, rfftfreq, irfft
 
@@ -133,25 +134,16 @@ class Tools:
 
     @staticmethod
     def plot_fft(fft_magnitude,fft_frequencies,range_low,range_high, duration):
-        plt.figure(figsize=(12, 4))
+        fig = plt.figure(figsize=(12, 2))
         range_low = int( range_low / float(duration) * len(fft_frequencies))
         range_high = int( range_high / float(duration) * len(fft_frequencies))
+        canvas = FigureCanvas(fig)
         plt.plot(fft_frequencies[range_low:range_high], abs(fft_magnitude[range_low:range_high]))
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
-        
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png')
-        buf.seek(0)
+        canvas.draw()
 
-        # Open the image and convert to a NumPy array
-        img = Image.open(buf)
-        img_array = np.asarray(img)
-
-        # Close the buffer
-        buf.close()
-
-        return img_array
+        return canvas.buffer_rgba(), fig.figbbox.width, fig.figbbox.height
     
     # Set and start the thread that will play the audio
     def play(self, buffer_size):
