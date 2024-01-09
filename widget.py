@@ -1,5 +1,5 @@
 from PyQt6 import QtWidgets, uic, QtCore, QtGui
-from PyQt6.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel
+from PyQt6.QtWidgets import QApplication, QWidget, QSlider, QListWidget, QListWidgetItem, QPushButton, QLineEdit, QLabel, QRadioButton
 from PyQt6.QtGui import QPixmap, QImage
 from equalizer_bar import EqualizerBar
 
@@ -22,6 +22,7 @@ class Widget(QWidget):
         self.setup_sliders()
         self.setup_songs_list()
         self.setup_plots()
+        self.setup_preset_buttons()
         self.tools = Tools()
         self.setup_noise_reduction()
         self.play_button = self.findChild(QPushButton, f"pushButton")
@@ -151,6 +152,21 @@ class Widget(QWidget):
         self.play_button = self.findChild(QPushButton, f"plotButton")
         self.play_button.pressed.connect(self.plot_button_pressed)
 
+    def setup_preset_buttons(self):
+        self.preset_buttons = []
+        i = 0
+        while(i < self.horizontalLayout_3.count()):
+            self.preset_buttons.append(self.findChild(QRadioButton, f"radioButton_{i}"))
+            self.preset_buttons[i].pressed.connect(self.preset_button_pressed)
+            i += 1
+
+    def preset_button_pressed(self):
+        i = 0
+        while(i < len(self.sliders)):
+            self.sliders[i].setValue(constants.presets[self.preset_buttons.index(self.sender())][i] / 12 * 50 + 50)
+            i += 1
+        self.update_sliders()
+
     def update_noise_sliders(self):
         i = 0
         while(i < len(self.noise_sliders)):
@@ -166,6 +182,7 @@ class Widget(QWidget):
         while(i < len(self.sliders)):
             self.tools.gain_list[i] = (self.sliders[i].value() - 50) / 2
             i += 1
+        self.preset_buttons[-1].setChecked(True)
     
     def play_button_pressed(self):
         if (self.current_song != self.songs_list.currentItem().text()):
@@ -179,24 +196,21 @@ class Widget(QWidget):
             self.tools.paused = True
 
     def plot_button_pressed(self):
-        fft_mag, fft_freq = self.tools.fourier_transform(self.tools.normalized_data)
-        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 10000, self.tools.duration)
-        height, width, channels = img_array.shape
-        bytes_per_line = img_array.strides[0]
-        q_img = QImage(img_array.data, width, height, img_array.strides[0], QImage.Format.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_img)
-        self.plots[0].setPixmap(pixmap)
-        self.plots[0].setScaledContents(True)
+        if (self.current_song is not None):
+            fft_mag, fft_freq = self.tools.fourier_transform(self.tools.normalized_data)
+            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
+            q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
+            pixmap = QPixmap.fromImage(q_img)
+            self.plots[0].setPixmap(pixmap)
+            self.plots[0].setScaledContents(True)
 
-        _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
-        fft_mag = self.tools.spectral_gate(fft_mag, fft_freq)
-        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 10000, self.tools.duration)
-        height, width, channels = img_array.shape
-        bytes_per_line = img_array.strides[0]
-        q_img = QImage(img_array.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_img)
-        self.plots[2].setPixmap(pixmap)
-        self.plots[2].setScaledContents(True)
+            _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
+            fft_mag = self.tools.spectral_gate(fft_mag, fft_freq)
+            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
+            q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
+            pixmap = QPixmap.fromImage(q_img)
+            self.plots[2].setPixmap(pixmap)
+            self.plots[2].setScaledContents(True)
         
 
 if __name__ == "__main__":
