@@ -52,7 +52,7 @@ class NoiseReduction:
         inverse_fourier = np.clip(inverse_fourier, min_val, max_val)
         return np.int16(inverse_fourier * (32767 / inverse_fourier.max())) # Normalize the resulting audio signal
 
-    def spectral_gate(self,fft_signal, freq_bands, thresholds):
+    def spectral_gate(self,fft_signal,fft_frequencies, freq_bands, thresholds):
         """
         :param freq_bands: List of frequency bands (each band is a tuple of start and end frequencies).
         :param thresholds: List of threshold percentages for each frequency band.
@@ -63,24 +63,22 @@ class NoiseReduction:
 
         # Frequency resolution
         freq_resolution = self.sample_rate / num_samples
-
+        
         # Function to find the index range for a given frequency band
-        def get_index_range(freq_band):
-            start_idx = int(freq_band[0] / freq_resolution)
-            end_idx = int(freq_band[1] / freq_resolution)
-            return start_idx, end_idx
-
-        # Apply spectral gate for each frequency band
         for band, threshold in zip(freq_bands, thresholds):
-            start_idx, end_idx = get_index_range(band)
-            band_magnitudes = np.abs(fft_signal[start_idx:end_idx])
-            max_magnitude = np.max(band_magnitudes)
-            threshold_value = max_magnitude * (threshold / 100)
+            start_freq = band[0]
+            end_freq = band[1]
+            band_indices = np.where((fft_frequencies >= start_freq) & (fft_frequencies < end_freq))
+            print("band_indices: ", band_indices)
+            band_magnitudes = np.abs(fft_signal[band_indices])
+            mean_magnitude = np.max(band_magnitudes)
+            print("mean: ", mean_magnitude)
+            print("max: ", np.max(band_magnitudes))
+            threshold_value = mean_magnitude * (threshold / 100)
 
-            # Apply threshold
-            for i in range(start_idx, end_idx):
-                if np.abs(fft_signal[i]) < threshold_value:
-                    fft_signal[i] = 0
+            a = fft_signal[band_indices]
+            a[a < threshold_value] = 0
+            fft_signal[band_indices] = a
 
         return fft_signal
     
@@ -96,9 +94,8 @@ class NoiseReduction:
 
     def plot_fft(self,fft_magnitude,fft_frequencies,range_low,range_high):
         plt.figure(figsize=(12, 4))
-        range_low = int( range_low / float(self.duration) * len(fft_frequencies))
-        range_high = int( range_high / float(self.duration) * len(fft_frequencies))
-        plt.plot(fft_frequencies[range_low:range_high], abs(fft_magnitude[range_low:range_high]))
+        
+        plt.plot(fft_frequencies[fft_frequencies < range_high], abs(fft_magnitude[fft_frequencies < range_high]))
         plt.title("Fourier Transform of the Audio")
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
@@ -151,27 +148,22 @@ class NoiseReduction:
         
         return self.inverse_fourier_transform(equalized_fft), equalized_fft
 
-
-
 if __name__ == "__main__":
     nr = NoiseReduction()
 
     nr.read_file('Je te laisserai des mots.wav')
     nr.input_mag, nr.input_freq = nr.fourier_transform(nr.normalized_data)
+    nr.plot_fft(nr.input_mag,nr.input_freq,0,500)
     # nr.plot(nr.normalized_data,nr.input_freq,0,50)
     # nr.plot_fft(nr.input_mag,nr.input_freq,0,50)
-    print("Normal audio...")
-    nr.play(128000)
-    time.sleep(5)
-    nr.stop()
-    freq_bands = [(100, 600), (600, 1000), (1000, 4000)] 
-    thresholds = [20, 30, 50]
+    freq_bands = [(200, 750), (600, 1000), (1000, 4000)] 
+    thresholds = [5, 30, 50]
 
-    gated_fft = nr.spectral_gate(nr.input_mag,freq_bands,thresholds)
+    gated_fft = nr.spectral_gate(nr.input_mag,nr.input_freq,freq_bands,thresholds)
     print("Gated...")
-    nr.plot_fft(gated_fft,nr.input_freq,0,50)
+    nr.plot_fft(gated_fft,nr.input_freq,0,500)
     gated_signal = nr.inverse_fourier_transform(gated_fft)
-    nr.plot(gated_signal,nr.input_freq,0,50)
+    # nr.plot(gated_signal,nr.input_freq,0,50)
     nr.normalized_data = np.int16((gated_signal / gated_signal.max()) * 32767)
     nr.gain_list = [0, 0, 12, 12, 0, 0, 0, 0, 0, 0, 0, 0]
     nr.play(128000)

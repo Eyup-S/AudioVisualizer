@@ -72,7 +72,7 @@ class Tools:
 
         return self.inverse_fourier_transform(equalized_fft), equalized_fft
     
-    def spectral_gate(self,fft_signal):
+    def spectral_gate(self,fft_signal,fft_frequencies):
         """
         :param freq_bands: List of frequency bands (each band is a tuple of start and end frequencies).
         :param thresholds: List of threshold percentages for each frequency band.
@@ -81,29 +81,31 @@ class Tools:
         if (self.nr_freq_bands is None) or (self.nr_thresholds is None):
             return fft_signal
         
+        for t in self.nr_thresholds:
+            if t >= 99:
+                t = 100
+
         # Number of samples in the FFT signal
         num_samples = len(fft_signal)
 
         # Frequency resolution
         freq_resolution = self.sample_rate / num_samples
-
+        
         # Function to find the index range for a given frequency band
-        def get_index_range(freq_band):
-            start_idx = int(freq_band[0] / freq_resolution)
-            end_idx = int(freq_band[1] / freq_resolution)
-            return start_idx, end_idx
-
-        # Apply spectral gate for each frequency band
         for band, threshold in zip(self.nr_freq_bands, self.nr_thresholds):
-            start_idx, end_idx = get_index_range(band)
-            band_magnitudes = np.abs(fft_signal[start_idx:end_idx])
-            max_magnitude = np.max(band_magnitudes)
-            threshold_value = max_magnitude * (threshold / 100)
+            start_freq = band[0]
+            end_freq = band[1]
+            band_indices = np.where((fft_frequencies >= start_freq) & (fft_frequencies < end_freq))
+            print("band_indices: ", band_indices)
+            band_magnitudes = np.abs(fft_signal[band_indices])
+            mean_magnitude = np.max(band_magnitudes)
+            print("mean: ", mean_magnitude)
+            print("max: ", np.max(band_magnitudes))
+            threshold_value = mean_magnitude * (threshold / 100)
 
-            # Apply threshold
-            for i in range(start_idx, end_idx):
-                if np.abs(fft_signal[i]) < threshold_value:
-                    fft_signal[i] = 0
+            a = fft_signal[band_indices]
+            a[a < threshold_value] = 0
+            fft_signal[band_indices] = a
 
         return fft_signal
     
@@ -133,10 +135,17 @@ class Tools:
 
     @staticmethod
     def plot_fft(fft_magnitude,fft_frequencies,range_low,range_high, duration):
+        """
+        @param range_high: max frequency to plot
+        """
+        
         plt.figure(figsize=(12, 4))
-        range_low = int( range_low / float(duration) * len(fft_frequencies))
-        range_high = int( range_high / float(duration) * len(fft_frequencies))
-        plt.plot(fft_frequencies[range_low:range_high], abs(fft_magnitude[range_low:range_high]))
+        # range_low = int( range_low / float(duration) * len(fft_frequencies))
+        # range_high = int( range_high / float(duration) * len(fft_frequencies))
+
+
+        # plt.plot(filtered_frequencies, abs(filtered_magnitudes))
+        plt.plot(fft_frequencies[fft_frequencies < range_high], abs(fft_magnitude[fft_frequencies < range_high]))
         plt.xlabel("Frequency")
         plt.ylabel("Magnitude")
         

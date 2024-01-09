@@ -189,8 +189,8 @@ class Widget(QWidget):
         self.plots[0].setScaledContents(True)
 
         _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
-        fft_mag = self.tools.spectral_gate(fft_mag)
-        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 20, self.tools.duration)
+        fft_mag = self.tools.spectral_gate(fft_mag, fft_freq)
+        img_array = Tools.plot_fft(fft_mag, fft_freq, 0, 20000, self.tools.duration)
         height, width, channels = img_array.shape
         bytes_per_line = img_array.strides[0]
         q_img = QImage(img_array.data, width, height, bytes_per_line, QImage.Format.Format_RGB888)
