@@ -97,7 +97,7 @@ class Tools:
             end_freq = band[1]
             band_indices = np.where((fft_frequencies >= start_freq) & (fft_frequencies < end_freq))
             band_magnitudes = np.abs(fft_signal[band_indices])
-            max_magnitude = np.max(band_magnitudes) / 2
+            max_magnitude = np.max(band_magnitudes)
            
             threshold_value = max_magnitude * (threshold / 100)
 
