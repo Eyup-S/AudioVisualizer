@@ -149,8 +149,8 @@ class Widget(QWidget):
         while(i < 3):
             self.plots.append(self.findChild(QLabel, f"label_{i}"))
             i += 1
-        self.play_button = self.findChild(QPushButton, f"plotButton")
-        self.play_button.pressed.connect(self.plot_button_pressed)
+        self.plot_button = self.findChild(QPushButton, f"plotButton")
+        self.plot_button.pressed.connect(self.plot_button_pressed)
 
     def setup_preset_buttons(self):
         self.preset_buttons = []
