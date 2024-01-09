@@ -198,15 +198,15 @@ class Widget(QWidget):
     def plot_button_pressed(self):
         if (self.current_song is not None):
             fft_mag, fft_freq = self.tools.fourier_transform(self.tools.normalized_data)
-            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 20, self.tools.duration)
+            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
             q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
             pixmap = QPixmap.fromImage(q_img)
             self.plots[0].setPixmap(pixmap)
             self.plots[0].setScaledContents(True)
 
             _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
-            fft_mag = self.tools.spectral_gate(fft_mag)
-            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 20, self.tools.duration)
+            fft_mag = self.tools.spectral_gate(fft_mag, fft_freq)
+            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
             q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
             pixmap = QPixmap.fromImage(q_img)
             self.plots[2].setPixmap(pixmap)
