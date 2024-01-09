@@ -96,12 +96,10 @@ class Tools:
             start_freq = band[0]
             end_freq = band[1]
             band_indices = np.where((fft_frequencies >= start_freq) & (fft_frequencies < end_freq))
-            print("band_indices: ", band_indices)
             band_magnitudes = np.abs(fft_signal[band_indices])
-            mean_magnitude = np.max(band_magnitudes)
-            print("mean: ", mean_magnitude)
-            print("max: ", np.max(band_magnitudes))
-            threshold_value = mean_magnitude * (threshold / 100)
+            max_magnitude = np.max(band_magnitudes) / 2
+           
+            threshold_value = max_magnitude * (threshold / 100)
 
             a = fft_signal[band_indices]
             a[a < threshold_value] = 0
@@ -190,7 +188,7 @@ class Tools:
             end = min(self.position + int(buffer_size * 2), len(self.normalized_data))
             self.input_mag , self.input_freq = self.fourier_transform(self.normalized_data[self.position:end])
             equalized_data, self.output_mag = self.equalizer(self.input_mag, self.input_freq, self.band_list, self.gain_list)
-            equalized_data = self.inverse_fourier_transform(self.spectral_gate(self.output_mag))
+            equalized_data = self.inverse_fourier_transform(self.spectral_gate(self.output_mag , self.input_freq))
             stream.write(equalized_data.tobytes())
             self.position = end
 
