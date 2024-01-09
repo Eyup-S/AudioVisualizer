@@ -103,7 +103,7 @@ class Tools:
             threshold_value = max_magnitude * (threshold / 100)
 
             a = fft_signal[band_indices]
-            a[a < threshold_value] = 0
+            a[abs(a) < threshold_value] = 0
             fft_signal[band_indices] = a
 
         return fft_signal

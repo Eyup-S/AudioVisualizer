@@ -151,6 +151,14 @@ class Widget(QWidget):
             i += 1
         self.plot_button = self.findChild(QPushButton, f"plotButton")
         self.plot_button.pressed.connect(self.plot_button_pressed)
+        default = [0, 1000]
+        self.min_max_boxes = []
+        i = 0
+        while(i < 2):
+            self.min_max_boxes.append(self.findChild(QLineEdit, f"plot_box_{i}"))
+            self.min_max_boxes[i].setText(str(default[i]))
+            self.min_max_boxes[i].setValidator(QtGui.QIntValidator())
+            i += 1
 
     def setup_preset_buttons(self):
         self.preset_buttons = []
@@ -196,9 +204,10 @@ class Widget(QWidget):
             self.tools.paused = True
 
     def plot_button_pressed(self):
+        self.play_button_pressed()
         if (self.current_song is not None):
             fft_mag, fft_freq = self.tools.fourier_transform(self.tools.normalized_data)
-            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
+            img_array, width, height = Tools.plot_fft(abs(fft_mag), fft_freq, int(self.min_max_boxes[0].text()), int(self.min_max_boxes[1].text()), self.tools.duration)
             q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
             pixmap = QPixmap.fromImage(q_img)
             self.plots[0].setPixmap(pixmap)
@@ -206,11 +215,12 @@ class Widget(QWidget):
 
             _, fft_mag = self.tools.equalizer(fft_mag, fft_freq, self.tools.band_list, self.tools.gain_list)
             fft_mag = self.tools.spectral_gate(fft_mag, fft_freq)
-            img_array, width, height = Tools.plot_fft(fft_mag, fft_freq, 0, 2000, self.tools.duration)
+            img_array, width, height = Tools.plot_fft(abs(fft_mag), fft_freq, int(self.min_max_boxes[0].text()), int(self.min_max_boxes[1].text()), self.tools.duration)
             q_img = QImage(img_array, width, height, QImage.Format.Format_RGB32)
             pixmap = QPixmap.fromImage(q_img)
             self.plots[2].setPixmap(pixmap)
             self.plots[2].setScaledContents(True)
+        self.play_button_pressed()
         
 
 if __name__ == "__main__":
