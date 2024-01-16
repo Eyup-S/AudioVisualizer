@@ -38,6 +38,7 @@ def add_noise_to_audio(file_path, output_path, min_freq, max_freq, noise_amplitu
 
     
     fft_magnitude_noise = rfft(noise if len(data.shape) == 1 else noise[:, 0])
+    print(fft_magnitude_noise)
     fft_frequencies_noise = rfftfreq(len(noise), d=1/sampling_rate)
 
     #take fourier transform of the noisy_signal
@@ -62,7 +63,7 @@ def add_noise_to_audio(file_path, output_path, min_freq, max_freq, noise_amplitu
     plt.title("Fourier Transform of the Noisy signal")
     plt.xlabel("Frequency")
     plt.ylabel("Magnitude")
-    plt.plot(fft_frequencies, np.abs(fft_magnitude))
+    plt.plot(fft_frequencies[fft_frequencies < 12000], np.abs(fft_magnitude[fft_frequencies < 12000]))
     plt.savefig('plot.png')
     plt.show()
 
@@ -75,6 +76,8 @@ def add_noise_to_audio(file_path, output_path, min_freq, max_freq, noise_amplitu
     plt.ylabel("Amplitude")
     plt.plot(noisy_signal)
     plt.show()
+
+    wavfile.write(output_path + "noise_never.wav", sr, noisy_signal.astype(np.int16))
     
 
 def add_noise_from_mat_file(mat_path, song_path, output_path):
@@ -202,8 +205,9 @@ def read_and_plot(path):
     # Plot the Fourier Transform
     fft_data = scipy.fft.fft(data)
     fft_freq = scipy.fft.fftfreq(len(fft_data), 1 / sample_rate)
+    
     print(fft_freq)
-    print(fft_data)
+    print("mag: ",np.abs(fft_data))
 
     plt.subplot(2, 1, 2)
     plt.plot(fft_freq, np.abs(fft_data))
@@ -215,6 +219,5 @@ def read_and_plot(path):
     plt.show()
 
 
-read_and_plot("songs/cendere_noise.wav")
-
-
+# read_and_plot("songs/Je te laisserai des mots.wav")
+add_noise_to_audio("songs/vivalavida.wav", "noosy", 5200,5400,3500,48000)

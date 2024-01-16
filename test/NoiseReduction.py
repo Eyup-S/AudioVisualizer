@@ -75,6 +75,7 @@ class NoiseReduction:
             print("mean: ", mean_magnitude)
             print("max: ", np.max(band_magnitudes))
             threshold_value = mean_magnitude * (threshold / 100)
+            print(band_magnitudes)
 
             a = fft_signal[band_indices]
             a[a < threshold_value] = 0

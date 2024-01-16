@@ -10,7 +10,6 @@ import os
 import numpy as np
 
 from Tools import Tools
-from NoiseReduction import NoiseReduction
 import constants
 
 
